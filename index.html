@@ -14,60 +14,105 @@
         .box { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 85%; text-align: center; }
         h2 { color: #52c41a; font-size: 24px; }
         p { font-size: 18px; color: #595959; }
-        input { width: 90%; padding: 15px; margin: 20px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; }
-        button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        input { width: 90%; padding: 15px; margin: 20px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
+        button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        button:disabled { background: #b7eb8f; cursor: not-allowed; }
+        #timerText { font-size: 14px; color: #8c8c8c; margin-top: 15px; display: none; }
+        
+        /* 右上角切换账号按钮 */
+        #switchUserBtn {
+            position: fixed; top: 15px; right: 15px; z-index: 10000;
+            background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 20px;
+            font-size: 13px; color: #595959; border: 1px solid #d9d9d9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; display: none;
+        }
     </style>
 </head>
 <body>
+    <div id="switchUserBtn" onclick="resetUser()">🔄 切换同学/换设备</div>
+
     <div id="welcome-mask">
         <div class="box">
             <h2>🌿 欢迎来到科学探究乐园</h2>
-            <p>我是桑桑老师，请输入你的班级和姓名，准备开启今天的驱动问题挑战吧！</p>
-            <input type="text" id="studentInput" placeholder="例如：五年级1班张小明">
-            <button onclick="startChat()">进入观察档案 ✨</button>
+            <p>我是桑桑老师，请输入你的班级和姓名。下次用同一部手机就不需要再填啦！</p>
+            <input type="text" id="studentInput" placeholder="例如：三年级1班张小明">
+            <button id="enterBtn" onclick="startChat()">进入观察档案 ✨</button>
+            <div id="timerText">正在唤醒桑桑老师，用时：<span id="timeCount">0.0</span> 秒...</div>
         </div>
     </div>
 
     <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.3/libs/cn/index.js"></script>
     <script>
-        // 👇 第 1 处修改：填入您在扣子发布的 Bot ID（那串纯数字）
         const MY_BOT_ID = '7628621142705831979'; 
-        
-        // 👇 第 2 处修改：填入您刚才在 Laf 云平台生成的接口链接
         const LAF_API_URL = 'https://gm5ve3gmrf.sealosbja.site/getToken'; 
+        let timerInterval;
 
+        // 【核心逻辑】：用名字当做全球唯一标识！
         const savedName = localStorage.getItem('sangsang_student_id');
         if (savedName) {
             document.getElementById('welcome-mask').style.display = 'none';
-            fetchTokenAndInit(savedName);
+            document.getElementById('switchUserBtn').style.display = 'block';
+            fetchTokenAndInit(savedName); // 传旧名字进去
+        }
+
+        // 重新输入名字功能
+        function resetUser() {
+            if(confirm('如果换了手机或想切换同学，请点确定重新输入名字，历史记录会自动同步哦！')) {
+                localStorage.removeItem('sangsang_student_id');
+                location.reload();
+            }
         }
 
         function startChat() {
             const name = document.getElementById('studentInput').value.trim();
             if (!name) return alert('同学们，记得输入班级和姓名哦！');
+            
+            const btn = document.getElementById('enterBtn');
+            btn.disabled = true;
+            btn.innerText = '正在连接数据库...';
+            
+            const startTime = Date.now();
+            document.getElementById('timerText').style.display = 'block';
+            timerInterval = setInterval(() => {
+                const cost = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('timeCount').innerText = cost;
+            }, 100);
+
+            // 把名字保存在这台手机上
             localStorage.setItem('sangsang_student_id', name);
-            document.getElementById('welcome-mask').style.display = 'none';
-            fetchTokenAndInit(name);
+            fetchTokenAndInit(name); // 传新名字进去
         }
 
         async function fetchTokenAndInit(userId) {
             try {
-                // 向您的 Laf 云端保险柜索要 Token
                 const res = await fetch(LAF_API_URL);
                 const data = await res.json();
                 
-                new CozeWebSDK.WebChatClient({
+                const cozeClient = new CozeWebSDK.WebChatClient({
                     config: { bot_id: MY_BOT_ID },
                     componentProps: { title: '蚕宝宝守护精灵桑桑 🌿' },
-                    auth: {
-                        type: 'token',
-                        token: data.token,
-                        onRefreshToken: () => data.token,
-                    },
-                    userInfo: { id: userId, nickname: userId }
+                    auth: { type: 'token', token: data.token, onRefreshToken: () => data.token },
+                    // 【关键】：把学生名字当做ID传给扣子，名字一样，云端记录就一样！
+                    userInfo: { id: userId, nickname: userId },
+                    ui: {
+                        base: { lang: 'zh-CN' },
+                        chatBot: { isNeedAudio: true },
+                        asstBtn: { isNeed: false }
+                    }
                 });
+
+                setTimeout(() => {
+                    clearInterval(timerInterval);
+                    document.getElementById('welcome-mask').style.display = 'none';
+                    document.getElementById('switchUserBtn').style.display = 'block';
+                    cozeClient.showChatBot();
+                }, 500);
+
             } catch(e) {
-                alert('真实报错原因：\n' + e.message + '\n\n（老师，请截个图发给我！）');
+                clearInterval(timerInterval);
+                alert('连接遇到小问题：\n' + e.message + '\n请刷新重试！');
+                document.getElementById('enterBtn').disabled = false;
+                document.getElementById('enterBtn').innerText = '进入观察档案 ✨';
             }
         }
     </script>
