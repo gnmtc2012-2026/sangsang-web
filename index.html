@@ -19,6 +19,7 @@
         button:disabled { background: #b7eb8f; cursor: not-allowed; }
         #timerText { font-size: 14px; color: #8c8c8c; margin-top: 15px; display: none; }
         
+        /* 极简版修改信息按钮 */
         #switchUserBtn {
             position: fixed; top: 15px; right: 15px; z-index: 10000;
             background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 20px;
@@ -28,12 +29,12 @@
     </style>
 </head>
 <body>
-    <div id="switchUserBtn" onclick="resetUser()">🔄 切换同学/换设备</div>
+    <div id="switchUserBtn" onclick="resetName()">✏️ 修改名字</div>
 
     <div id="welcome-mask">
         <div class="box">
             <h2>🌿 欢迎来到科学探究乐园</h2>
-            <p>我是桑桑老师，请输入你的班级和姓名。下次用同一部手机就不需要再填啦！</p>
+            <p>我是桑桑老师，请输入你的班级和姓名。下次进来就不需要再填啦！</p>
             <input type="text" id="studentInput" placeholder="例如：三年级1班张小明">
             <button id="enterBtn" onclick="startChat()">进入观察档案 ✨</button>
             <div id="timerText">正在唤醒桑桑老师，用时：<span id="timeCount">0.0</span> 秒...</div>
@@ -46,6 +47,7 @@
         const LAF_API_URL = 'https://gm5ve3gmrf.sealosbja.site/getToken'; 
         let timerInterval;
 
+        // 读取缓存名字
         const savedName = localStorage.getItem('sangsang_student_id');
         if (savedName) {
             document.getElementById('welcome-mask').style.display = 'none';
@@ -53,27 +55,11 @@
             fetchTokenAndInit(savedName); 
         }
 
-        // ==========================================
-        // 【核心升级】：防钉钉/微信流氓拦截机制
-        // ==========================================
-        function resetUser() {
-            const ua = navigator.userAgent.toLowerCase();
-            const isDingTalkOrWeChat = ua.indexOf('dingtalk') > -1 || ua.indexOf('micromessenger') > -1;
-            
-            if (isDingTalkOrWeChat) {
-                // 如果在钉钉或微信里，弹窗引导去外部浏览器
-                alert('⚠️ 老师温馨提示：\n\n由于钉钉/微信会自动锁定数据，如果家里有两个孩子需要切换账号，请点击右上角的【···】菜单，选择【在浏览器打开】（或Safari打开），然后再进行切换操作哦！');
-            } else {
-                // 如果已经在外部浏览器，直接核弹级清理
-                if(confirm('系统将深度清理缓存防止记录混淆。确定要切换同学吗？')) {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    if (window.indexedDB) {
-                        window.indexedDB.deleteDatabase('coze-chat-sdk');
-                        window.indexedDB.deleteDatabase('coze-web-sdk');
-                    }
-                    setTimeout(() => { location.reload(); }, 300);
-                }
+        // 最简单的修改名字功能，只删名字，不碰底层，绝不报错
+        function resetName() {
+            if(confirm('想要修改填写的班级和姓名吗？')) {
+                localStorage.removeItem('sangsang_student_id');
+                location.reload();
             }
         }
 
@@ -92,6 +78,7 @@
                 document.getElementById('timeCount').innerText = cost;
             }, 100);
 
+            // 记住名字
             localStorage.setItem('sangsang_student_id', name);
             fetchTokenAndInit(name); 
         }
