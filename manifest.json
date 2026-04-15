@@ -1,6 +1,6 @@
 {
-  "name": "蚕宝宝守护精灵桑桑",
-  "short_name": "桑桑精灵",
+  "name": "桑桑科学档案",
+  "short_name": "桑桑档案",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#f6ffed",
