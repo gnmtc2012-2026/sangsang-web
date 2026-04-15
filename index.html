@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>蚕宝宝守护精灵桑桑</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="桑桑档案">
+    <link rel="apple-touch-icon" href="logo.png">
+
     <style>
         body { margin: 0; padding: 0; background-color: #f6ffed; font-family: sans-serif; }
         #welcome-mask {
@@ -12,29 +19,43 @@
             align-items: center; justify-content: center; z-index: 9999;
         }
         .box { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 85%; text-align: center; }
-        h2 { color: #52c41a; font-size: 24px; }
-        p { font-size: 18px; color: #595959; }
-        input { width: 90%; padding: 15px; margin: 20px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
-        button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        h2 { color: #52c41a; font-size: 24px; margin-top: 0; }
+        p { font-size: 16px; color: #595959; }
+        input { width: 90%; padding: 15px; margin: 15px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
+        button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
         button:disabled { background: #b7eb8f; cursor: not-allowed; }
         #timerText { font-size: 14px; color: #8c8c8c; margin-top: 15px; display: none; }
         
-        /* 极简版修改信息按钮 */
+        /* 隐形修改按钮 */
         #switchUserBtn {
-            position: fixed; top: 15px; right: 15px; z-index: 10000;
-            background: rgba(255,255,255,0.9); padding: 6px 12px; border-radius: 20px;
-            font-size: 13px; color: #595959; border: 1px solid #d9d9d9;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; display: none;
+            position: fixed; top: 10px; right: 10px; z-index: 10000;
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(4px);
+            padding: 4px 8px; border-radius: 8px; font-size: 11px; color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 0, 0, 0.05); cursor: pointer; display: none; transition: all 0.3s ease;
         }
+        #switchUserBtn:active, #switchUserBtn:hover { background: rgba(255, 255, 255, 0.95); color: #52c41a; border-color: #b7eb8f; }
+
+        /* 进度条美化 */
+        .progress-container { margin: 20px 0; padding: 15px; background: #fafafa; border-radius: 12px; border: 1px dashed #d9d9d9;}
+        .progress-text { font-size: 15px; color: #595959; margin-bottom: 8px; font-weight: bold;}
+        .day-highlight { color: #52c41a; font-size: 26px; margin: 0 4px; }
+        .bar-bg { background: #e8e8e8; border-radius: 10px; height: 12px; width: 100%; overflow: hidden; }
+        .bar-fill { background: linear-gradient(90deg, #95de64 0%, #52c41a 100%); height: 100%; width: 0%; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 10px;}
     </style>
 </head>
 <body>
-    <div id="switchUserBtn" onclick="resetName()">✏️ 修改名字</div>
+    <div id="switchUserBtn" onclick="resetName()">⚙️ 修改信息</div>
 
     <div id="welcome-mask">
         <div class="box">
             <h2>🌿 欢迎来到科学探究乐园</h2>
-            <p>我是桑桑老师，请输入你的班级和姓名。下次进来就不需要再填啦！</p>
+            
+            <div class="progress-container">
+                <div class="progress-text">📅 蚕宝宝观察之旅 第 <span id="day-count" class="day-highlight">1</span> 天</div>
+                <div class="bar-bg"><div id="progress-fill" class="bar-fill"></div></div>
+            </div>
+
+            <p>我是桑桑老师，请输入班级姓名，开启今天的记录吧！</p>
             <input type="text" id="studentInput" placeholder="例如：三年级1班张小明">
             <button id="enterBtn" onclick="startChat()">进入观察档案 ✨</button>
             <div id="timerText">正在唤醒桑桑老师，用时：<span id="timeCount">0.0</span> 秒...</div>
@@ -47,15 +68,49 @@
         const LAF_API_URL = 'https://gm5ve3gmrf.sealosbja.site/getToken'; 
         let timerInterval;
 
-        // 读取缓存名字
+        // ==========================================
+        // 📅 日期计算逻辑 (老师请修改这里的起始日期)
+        // ==========================================
+        const PROJECT_START_DATE = '2026-04-15'; // <--- 发放蚕宝宝的第一天
+        
+        function calculateProgress() {
+            const startDate = new Date(PROJECT_START_DATE);
+            const today = new Date();
+            // 计算相差天数（今天减去开始日期）
+            const diffTime = today.getTime() - startDate.getTime();
+            let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 表示第一天算作第1天
+            
+            if (diffDays < 1) diffDays = 1; 
+            if (diffDays > 60) diffDays = 60; // 满级60天
+            
+            document.getElementById('day-count').innerText = diffDays;
+            
+            // 延迟0.3秒执行动画，让孩子们能看到进度条上涨的过程
+            setTimeout(() => {
+                const percent = (diffDays / 60) * 100;
+                document.getElementById('progress-fill').style.width = percent + '%';
+            }, 300);
+        }
+        
+        // 页面一加载就计算进度条
+        calculateProgress();
+
+        // 验证缓存
         const savedName = localStorage.getItem('sangsang_student_id');
         if (savedName) {
-            document.getElementById('welcome-mask').style.display = 'none';
-            document.getElementById('switchUserBtn').style.display = 'block';
-            fetchTokenAndInit(savedName); 
+            // 如果已经有名字，只把输入框和说明隐藏，保留进度条展示 1.5 秒再进门，增加仪式感
+            document.getElementById('studentInput').style.display = 'none';
+            document.querySelector('.box p').style.display = 'none';
+            document.getElementById('enterBtn').innerText = '正在进入今天的日记...';
+            document.getElementById('enterBtn').disabled = true;
+            
+            setTimeout(() => {
+                document.getElementById('welcome-mask').style.display = 'none';
+                document.getElementById('switchUserBtn').style.display = 'block';
+                fetchTokenAndInit(savedName); 
+            }, 1500); 
         }
 
-        // 最简单的修改名字功能，只删名字，不碰底层，绝不报错
         function resetName() {
             if(confirm('想要修改填写的班级和姓名吗？')) {
                 localStorage.removeItem('sangsang_student_id');
@@ -78,7 +133,6 @@
                 document.getElementById('timeCount').innerText = cost;
             }, 100);
 
-            // 记住名字
             localStorage.setItem('sangsang_student_id', name);
             fetchTokenAndInit(name); 
         }
