@@ -55,10 +55,12 @@
             fetchTokenAndInit(savedName); // 传旧名字进去
         }
 
-        // 重新输入名字功能
+       // 重新输入名字功能（二胎家庭完美切换版）
         function resetUser() {
             if(confirm('如果换了手机或想切换同学，请点确定重新输入名字，历史记录会自动同步哦！')) {
-                localStorage.removeItem('sangsang_student_id');
+                // 【核心修复】：不仅删名字，连同扣子悄悄存的“房间号”缓存一并彻底清空！
+                localStorage.clear();
+                sessionStorage.clear();
                 location.reload();
             }
         }
