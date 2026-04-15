@@ -24,7 +24,6 @@
         input { width: 90%; padding: 15px; margin: 15px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
         button:disabled { background: #b7eb8f; cursor: not-allowed; }
-        #timerText { font-size: 14px; color: #8c8c8c; margin-top: 15px; display: none; }
         
         /* 隐形修改按钮 */
         #switchUserBtn {
@@ -58,7 +57,6 @@
             <p>我是桑桑老师，请输入班级姓名，开启今天的记录吧！</p>
             <input type="text" id="studentInput" placeholder="例如：三年级1班张小明">
             <button id="enterBtn" onclick="startChat()">进入观察档案 ✨</button>
-            <div id="timerText">正在唤醒桑桑老师，用时：<span id="timeCount">0.0</span> 秒...</div>
         </div>
     </div>
 
@@ -66,7 +64,6 @@
     <script>
         const MY_BOT_ID = '7628621142705831979'; 
         const LAF_API_URL = 'https://gm5ve3gmrf.sealosbja.site/getToken'; 
-        let timerInterval;
 
         // ==========================================
         // 📅 日期计算逻辑 (老师请修改这里的起始日期)
@@ -76,32 +73,28 @@
         function calculateProgress() {
             const startDate = new Date(PROJECT_START_DATE);
             const today = new Date();
-            // 计算相差天数（今天减去开始日期）
             const diffTime = today.getTime() - startDate.getTime();
-            let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 表示第一天算作第1天
+            let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; 
             
             if (diffDays < 1) diffDays = 1; 
-            if (diffDays > 60) diffDays = 60; // 满级60天
+            if (diffDays > 60) diffDays = 60; 
             
             document.getElementById('day-count').innerText = diffDays;
             
-            // 延迟0.3秒执行动画，让孩子们能看到进度条上涨的过程
             setTimeout(() => {
                 const percent = (diffDays / 60) * 100;
                 document.getElementById('progress-fill').style.width = percent + '%';
             }, 300);
         }
         
-        // 页面一加载就计算进度条
         calculateProgress();
 
         // 验证缓存
         const savedName = localStorage.getItem('sangsang_student_id');
         if (savedName) {
-            // 如果已经有名字，只把输入框和说明隐藏，保留进度条展示 1.5 秒再进门，增加仪式感
             document.getElementById('studentInput').style.display = 'none';
             document.querySelector('.box p').style.display = 'none';
-            document.getElementById('enterBtn').innerText = '正在进入今天的日记...';
+            document.getElementById('enterBtn').innerText = '正在打开今天的日记...';
             document.getElementById('enterBtn').disabled = true;
             
             setTimeout(() => {
@@ -126,13 +119,6 @@
             btn.disabled = true;
             btn.innerText = '正在连接数据库...';
             
-            const startTime = Date.now();
-            document.getElementById('timerText').style.display = 'block';
-            timerInterval = setInterval(() => {
-                const cost = ((Date.now() - startTime) / 1000).toFixed(1);
-                document.getElementById('timeCount').innerText = cost;
-            }, 100);
-
             localStorage.setItem('sangsang_student_id', name);
             fetchTokenAndInit(name); 
         }
@@ -155,14 +141,12 @@
                 });
 
                 setTimeout(() => {
-                    clearInterval(timerInterval);
                     document.getElementById('welcome-mask').style.display = 'none';
                     document.getElementById('switchUserBtn').style.display = 'block';
                     cozeClient.showChatBot();
                 }, 500);
 
             } catch(e) {
-                clearInterval(timerInterval);
                 alert('连接遇到小问题：\n' + e.message + '\n请刷新重试！');
                 document.getElementById('enterBtn').disabled = false;
                 document.getElementById('enterBtn').innerText = '进入观察档案 ✨';
