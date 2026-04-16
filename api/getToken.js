@@ -49,8 +49,17 @@ module.exports = async function (req, res) {
         } else {
             res.status(500).json({ error: '扣子拒绝发卡，请检查 OAuth 权限配置' });
         }
-    } catch (error) {
+} catch (error) {
         console.error("生成 Token 报错", error);
-        res.status(500).json({ error: '后台服务器通信错误' });
+        
+        // 👇 抓取真正的案发原因
+        let realReason = error.message;
+        if (error.response && error.response.data) {
+            realReason = JSON.stringify(error.response.data);
+        }
+        
+        // 把真凶直接推送到手机屏幕上
+        res.status(500).json({ error: '真凶找到了：' + realReason });
     }
+};
 };
