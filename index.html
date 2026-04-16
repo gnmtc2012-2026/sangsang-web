@@ -18,7 +18,7 @@
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
         button:disabled { background: #b7eb8f; cursor: not-allowed; }
         
-        /* 隐形切换按钮，做得更圆润一点 */
+        /* 隐形切换按钮 */
         #switchUserBtn {
             position: fixed; top: 10px; right: 10px; z-index: 10000;
             background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(4px);
@@ -59,17 +59,14 @@
             }, 800); 
         }
 
-        // 👇 强力脱困版切换逻辑
+        // 强力脱困版切换逻辑（解决双胞胎串号缓存）
         function resetName() {
             if(confirm('家里有两个孩子需要切换，或想要修改姓名吗？')) {
-                // 1. 删掉网页记录的名字
                 localStorage.removeItem('sangsang_student_id');
-                // 2. 顺手把扣子原本的本地聊天缓存数据库炸掉，防止旧画面闪烁
                 if (window.indexedDB) {
                     window.indexedDB.deleteDatabase('coze-chat-sdk');
                     window.indexedDB.deleteDatabase('coze-web-sdk');
                 }
-                // 3. 强制刷新页面
                 location.reload();
             }
         }
@@ -88,16 +85,22 @@
 
         async function fetchTokenAndInit(userId) {
             try {
-                // 网页带着名字去 Vercel 领专属房卡
                 const requestUrl = VERCEL_API_URL + '?name=' + encodeURIComponent(userId);
                 const res = await fetch(requestUrl);
                 const data = await res.json();
                 
+                // 👇 拦截报错：如果后台没发下来房卡，直接弹窗告诉老师原因
+                if (!data.token) {
+                    alert("后台连接失败！原因：" + (data.error || "未知错误"));
+                    document.getElementById('enterBtn').disabled = false;
+                    document.getElementById('enterBtn').innerText = '重试 ✨';
+                    return; 
+                }
+
                 const cozeClient = new CozeWebSDK.WebChatClient({
                     config: { bot_id: MY_BOT_ID },
                     componentProps: { title: '蚕宝宝守护精灵桑桑 🌿' },
                     auth: { type: 'token', token: data.token, onRefreshToken: () => data.token },
-                    // 使用名字作为唯一身份标识，这和后端的 JWT 完美呼应
                     userInfo: { id: userId, nickname: userId },
                     ui: {
                         base: { lang: 'zh-CN' },
@@ -113,7 +116,7 @@
                 }, 300);
 
             } catch(e) {
-                alert('连接遇到小问题：\n' + e.message + '\n请刷新重试！');
+                alert('网络连接遇到小问题：\n' + e.message + '\n请刷新重试！');
                 document.getElementById('enterBtn').disabled = false;
                 document.getElementById('enterBtn').innerText = '进入观察档案 ✨';
             }
