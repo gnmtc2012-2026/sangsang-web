@@ -2,21 +2,18 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 module.exports = async function (req, res) {
-    // 核心安全机制：读取 Vercel 的系统保险柜
-    const clientId = process.env.COZE_CLIENT_ID; 
-    const kid = process.env.COZE_KID; 
-    let privateKey = process.env.COZE_PRIVATE_KEY;
-    
-    // 自动修复环境变量中私钥可能的换行符丢失问题
-    if (privateKey && privateKey.includes('\\n')) {
-        privateKey = privateKey.replace(/\\n/g, '\n');
-    }
+    // 👇 终极护盾：强制剥离所有因复制带来的双引号、单引号和隐藏空格！
+    let clientId = (process.env.COZE_CLIENT_ID || '').replace(/['"]/g, '').trim();
+    let kid = (process.env.COZE_KID || '').replace(/['"]/g, '').trim();
+    let privateKey = (process.env.COZE_PRIVATE_KEY || '')
+        .replace(/"/g, '')        // 去除首尾可能的双引号
+        .replace(/\\n/g, '\n')    // 完美处理换行符
+        .trim();
 
     if (!clientId || !kid || !privateKey) {
-        return res.status(500).json({ error: '系统安全配置缺失' });
+        return res.status(500).json({ error: '环境变量未正确读取，请检查 Vercel' });
     }
 
-    // 👇 核心修复：去掉了 session_name，纯净的国际标准格式，绝对不会引发乱码崩溃！
     const payload = {
         iss: clientId,
         aud: "api.coze.cn",
@@ -42,7 +39,7 @@ module.exports = async function (req, res) {
         if (response.data && response.data.access_token) {
             res.status(200).json({ token: response.data.access_token });
         } else {
-            res.status(500).json({ error: '扣子拒绝发卡' });
+            res.status(500).json({ error: '扣子验证通过但未发卡' });
         }
     } catch (error) {
         let realReason = error.message;
