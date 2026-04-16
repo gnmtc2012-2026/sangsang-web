@@ -16,25 +16,23 @@
         p { font-size: 16px; color: #595959; }
         input { width: 90%; padding: 15px; margin: 15px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
-        button:disabled { background: #b7eb8f; cursor: not-allowed; }
         
-        /* 隐形切换按钮 */
+        /* 右上角切换按钮 */
         #switchUserBtn {
             position: fixed; top: 10px; right: 10px; z-index: 10000;
-            background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(4px);
-            padding: 5px 10px; border-radius: 12px; font-size: 12px; color: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(0, 0, 0, 0.08); cursor: pointer; display: none; transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px);
+            padding: 8px 15px; border-radius: 20px; font-size: 13px; color: #52c41a;
+            border: 1px solid #b7eb8f; cursor: pointer; display: none;
         }
-        #switchUserBtn:active, #switchUserBtn:hover { background: rgba(255, 255, 255, 0.95); color: #52c41a; border-color: #b7eb8f; }
     </style>
 </head>
 <body>
-    <div id="switchUserBtn" onclick="resetName()">🔄 切换同学</div>
+    <div id="switchUserBtn" onclick="resetAndReload()">🔄 切换同学</div>
 
     <div id="welcome-mask">
         <div class="box">
-            <h2>🌿 欢迎来到科学探究乐园</h2>
-            <p>我是桑桑老师，请输入班级姓名，开启今天的记录吧！</p>
+            <h2>🌿 科学探究乐园</h2>
+            <p>我是桑桑老师，请输入班级姓名开始记录：</p>
             <input type="text" id="studentInput" placeholder="例如：三年级1班张小明">
             <button id="enterBtn" onclick="startChat()">进入观察档案 ✨</button>
         </div>
@@ -43,82 +41,72 @@
     <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.3/libs/cn/index.js"></script>
     <script>
         const MY_BOT_ID = '7628621142705831979'; 
-        const VERCEL_API_URL = '/api/getToken'; 
+        const API_ENDPOINT = '/api/getToken'; 
 
-        const savedName = localStorage.getItem('sangsang_student_id');
-        if (savedName) {
-            document.getElementById('studentInput').style.display = 'none';
-            document.querySelector('.box p').style.display = 'none';
-            document.getElementById('enterBtn').innerText = '正在打开今天的日记...';
-            document.getElementById('enterBtn').disabled = true;
-            
-            setTimeout(() => {
-                document.getElementById('welcome-mask').style.display = 'none';
-                document.getElementById('switchUserBtn').style.display = 'block';
-                fetchTokenAndInit(savedName); 
-            }, 800); 
+        // 核心逻辑：彻底清除缓存
+        async function clearCozeCache() {
+            localStorage.removeItem('sangsang_student_id');
+            // 暴力删除扣子SDK生成的数据库，这是解决“串号”的关键
+            if (window.indexedDB) {
+                const dbs = ['coze-chat-sdk', 'coze-web-sdk', 'localforage'];
+                dbs.forEach(db => window.indexedDB.deleteDatabase(db));
+            }
         }
 
-        // 强力脱困版切换逻辑（解决双胞胎串号缓存）
-        function resetName() {
-            if(confirm('家里有两个孩子需要切换，或想要修改姓名吗？')) {
-                localStorage.removeItem('sangsang_student_id');
-                if (window.indexedDB) {
-                    window.indexedDB.deleteDatabase('coze-chat-sdk');
-                    window.indexedDB.deleteDatabase('coze-web-sdk');
-                }
+        function resetAndReload() {
+            if(confirm('确定要切换同学并清除当前记录吗？')) {
+                clearCozeCache();
                 location.reload();
             }
         }
 
-        function startChat() {
-            const name = document.getElementById('studentInput').value.trim();
-            if (!name) return alert('同学们，记得输入班级和姓名哦！');
-            
-            const btn = document.getElementById('enterBtn');
-            btn.disabled = true;
-            btn.innerText = '正在连接数据库...';
-            
-            localStorage.setItem('sangsang_student_id', name);
-            fetchTokenAndInit(name); 
+        // 检查是否已有登录记录
+        const savedName = localStorage.getItem('sangsang_student_id');
+        if (savedName) {
+            document.getElementById('welcome-mask').style.display = 'none';
+            document.getElementById('switchUserBtn').style.display = 'block';
+            initCoze(savedName);
         }
 
-        async function fetchTokenAndInit(userId) {
+        async function startChat() {
+            const name = document.getElementById('studentInput').value.trim();
+            if (!name) return alert('请先输入班级姓名哦！');
+            
+            // 第一次登录前也清理一次，防患于未然
+            await clearCozeCache();
+            localStorage.setItem('sangsang_student_id', name);
+            location.reload(); // 刷新以应用清理并进入 initCoze
+        }
+
+        async function initCoze(userId) {
             try {
-                const requestUrl = VERCEL_API_URL + '?name=' + encodeURIComponent(userId);
-                const res = await fetch(requestUrl);
+                // 向后台请求专属 Token
+                const res = await fetch(API_ENDPOINT + '?name=' + encodeURIComponent(userId));
                 const data = await res.json();
                 
-                // 👇 拦截报错：如果后台没发下来房卡，直接弹窗告诉老师原因
-                if (!data.token) {
-                    alert("后台连接失败！原因：" + (data.error || "未知错误"));
-                    document.getElementById('enterBtn').disabled = false;
-                    document.getElementById('enterBtn').innerText = '重试 ✨';
-                    return; 
-                }
+                if (!data.token) throw new Error(data.error || '获取Token失败');
 
-                const cozeClient = new CozeWebSDK.WebChatClient({
+                new CozeWebSDK.WebChatClient({
                     config: { bot_id: MY_BOT_ID },
                     componentProps: { title: '蚕宝宝守护精灵桑桑 🌿' },
-                    auth: { type: 'token', token: data.token, onRefreshToken: () => data.token },
+                    auth: { 
+                        type: 'token', 
+                        token: data.token, 
+                        onRefreshToken: () => data.token 
+                    },
+                    // 👇 关键：使用姓名作为唯一ID，确保扣子拉取对应的历史记录
                     userInfo: { id: userId, nickname: userId },
                     ui: {
                         base: { lang: 'zh-CN' },
-                        chatBot: { isNeedAudio: true },
-                        asstBtn: { isNeed: false }
+                        asstBtn: { isNeed: false },
+                        footer: { isNeed: true }
                     }
-                });
+                }).showChatBot();
 
-                setTimeout(() => {
-                    document.getElementById('welcome-mask').style.display = 'none';
-                    document.getElementById('switchUserBtn').style.display = 'block';
-                    cozeClient.showChatBot();
-                }, 300);
-
-            } catch(e) {
-                alert('网络连接遇到小问题：\n' + e.message + '\n请刷新重试！');
-                document.getElementById('enterBtn').disabled = false;
-                document.getElementById('enterBtn').innerText = '进入观察档案 ✨';
+            } catch (e) {
+                alert('连接失败：' + e.message);
+                clearCozeCache();
+                location.reload();
             }
         }
     </script>
