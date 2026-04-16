@@ -17,7 +17,6 @@
         input { width: 90%; padding: 15px; margin: 15px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
         
-        /* 切换同学按钮 */
         #switchUserBtn {
             position: fixed; top: 10px; right: 10px; z-index: 10000;
             background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px);
@@ -43,19 +42,22 @@
         const MY_BOT_ID = '7628621142705831979'; 
         const API_ENDPOINT = '/api/getToken'; 
 
-        // 核心武器：暴力清理手机/电脑浏览器的旧缓存记录
+        // 终极缓存粉碎机（现在能真正生效了！）
         async function clearCozeCache() {
-            localStorage.removeItem('sangsang_student_id');
+            localStorage.clear(); // 我们的专属网页，放心清空
             if (window.indexedDB) {
                 const dbs = ['coze-chat-sdk', 'coze-web-sdk', 'localforage'];
-                dbs.forEach(db => window.indexedDB.deleteDatabase(db));
+                dbs.forEach(db => {
+                    try { window.indexedDB.deleteDatabase(db); } catch(e) {}
+                });
             }
         }
 
         function resetAndReload() {
-            if(confirm('确定要切换同学并清除当前记录吗？')) {
-                clearCozeCache();
-                location.reload();
+            if(confirm('确定要切换同学吗？')) {
+                clearCozeCache().then(() => {
+                    location.reload();
+                });
             }
         }
 
@@ -70,7 +72,6 @@
             const name = document.getElementById('studentInput').value.trim();
             if (!name) return alert('请先输入班级姓名哦！');
             
-            // 登录前彻底清空上一个人的记录
             await clearCozeCache();
             localStorage.setItem('sangsang_student_id', name);
             location.reload(); 
@@ -78,21 +79,24 @@
 
         async function initCoze(userName) {
             try {
-                // 去后台要一张写着该名字的房卡
-                const res = await fetch(API_ENDPOINT + '?name=' + encodeURIComponent(userName));
+                const res = await fetch(API_ENDPOINT);
                 const data = await res.json();
                 
                 if (!data.token) throw new Error(data.error || '后台发卡失败');
 
                 new CozeWebSDK.WebChatClient({
-                    config: { bot_id: MY_BOT_ID },
+                    config: { 
+                        bot_id: MY_BOT_ID,
+                        botId: MY_BOT_ID, // 兼容新老版本写法
+                        // 👇 核心破局点：禁止 iframe，把主动权抢回我们自己的网站！
+                        isIframe: false 
+                    },
                     componentProps: { title: '蚕宝宝守护精灵桑桑 🌿' },
                     auth: { 
                         type: 'token', 
                         token: data.token, 
                         onRefreshToken: () => data.token 
                     },
-                    // 绑定前端身份，死死锁住记录
                     userInfo: { id: userName, nickname: userName },
                     ui: {
                         base: { lang: 'zh-CN' },
@@ -103,7 +107,7 @@
 
             } catch (e) {
                 alert('连接遇到小问题：\n' + e.message);
-                clearCozeCache();
+                await clearCozeCache();
                 location.reload();
             }
         }
