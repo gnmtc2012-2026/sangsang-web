@@ -9,13 +9,15 @@ module.exports = async function (req, res) {
     const kid = process.env.COZE_KID; 
     let privateKey = process.env.COZE_PRIVATE_KEY;
     
+    // 自动修复环境变量中私钥可能的换行符丢失问题
     if (privateKey && privateKey.includes('\\n')) {
         privateKey = privateKey.replace(/\\n/g, '\n');
     }
 
+    // 安全校验：如果 Vercel 没配置环境变量，直接拦截并报错
     if (!clientId || !kid || !privateKey) {
         console.error("安全警报：Vercel 环境变量未配置！");
-        return res.status(500).json({ error: '系统安全配置缺失' });
+        return res.status(500).json({ error: '系统安全配置缺失，请检查 Vercel 环境变量' });
     }
 
     const payload = {
@@ -41,13 +43,14 @@ module.exports = async function (req, res) {
             headers: { 'Content-Type': 'application/json' }
         });
 
+        // 成功发放，扔给前端网页
         if (response.data && response.data.access_token) {
             res.status(200).json({ token: response.data.access_token });
         } else {
-            res.status(500).json({ error: '换取 Token 失败' });
+            res.status(500).json({ error: '扣子拒绝发卡，请检查 OAuth 权限配置' });
         }
     } catch (error) {
         console.error("生成 Token 报错", error);
-        res.status(500).json({ error: '服务器错误' });
+        res.status(500).json({ error: '后台服务器通信错误' });
     }
 };
