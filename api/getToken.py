@@ -1,54 +1,36 @@
 from http.server import BaseHTTPRequestHandler
 import json
+import os
+from urllib.parse import urlparse, parse_qs
 from cozepy import load_oauth_app_from_config
-
-COZE_CONFIG = {
-    "client_type": "jwt",
-    "client_id": "1111557339016",
-    "coze_www_base": "https://www.coze.cn",
-    "coze_api_base": "https://api.coze.cn",
-    "private_key": """-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC+/HIN8g4KFqss
-/tLC5xuCTF9WqZDuxwIWR4Z2c2NUEvdXtC7sozXUx0FJHAU3pG6+nD6kWeA5ZUjP
-6OjbDpWAeoY7di7dkLAyH0m0TSMWuVOrsxYsnNwplZBScePgjEBVYcAFsLo//sCG
-8e95dF950FAJu9BAyLg3khnpBhuRm25rj4SCVHz5p1GY9f7p+AvMJwa+QYAbS1CG
-YW+A2ariYUIAovGE3ruJRZneIOjFd4TQY9u4ssROppyi/xXA3P6qbsGizYNiwE86
-U0puS/LNN0hahQgpvKyWUZ8mecf4CaTUvuJmRzvY/c0aottPL7AaOgPtqZ9lVr/H
-fi6/O7fzAgMBAAECggEACS9bODLPHGAZDQ8XnsT+QdwfbQEMVdd0pmf73lV6o5qi
-kka5nQAqa23Gb4LX+LmWk+Hax2JafMLTZ3Wu694TMDx0Q9wmsS7aB8cRGd6TKe7G
-yIf9MIRouDKXtXIBwL+uAQ00RBx1kJ9VWLK+TsvbIvYdlfeWMo9qAKOCTdPRM/A9
-nl3AgXYXdSEm9lojzXKTJ4u+2MMI4j0S5crlm3N2oTsh/TqfyygQ0cM87goHJeUNE
-cGGbSDLTzRFv4djgenoRopyRopOoZK1eW6ll88DtFwPjOtOudzwJ+riGg6fMYx1bs
-zDHPBc2w8qMlZMNwjbRJ8zoGCE4mQyhD7IoR+ys9+QKBgQDlrVoVjX1ellFmAta2
-gDKLhER9o7bq7aCL87eD22KeE3Ava2l7BbYLmFHSfqSygHovecoHQKYvD8vVRnG3
-or34+ceiaMFv0ouxrcR1wfdqzJrPc0V4SAHIejqF8gEXmWVgjR6rXR3AvKrMyOlQ
-AsYfaKOf+AGSxAZERTTidAWoOQKBgQDU3+lzv/yCrAcocLrHP4KOxjf4rccplh+P
-1iiKFv+/PuHZfAnKKKhKmfLmaFrfJ3x4jE78wMwpff/YJUmE8cjwhwVwUJSM9Ixs
-VUfAS6iAx+LE+hDQOhNXLaZbnJIiOMn4TMZbwLig+WsAAG89h5v97FqoRKTnOrNy
-D/dNW3ppiwKBgHjOGG7zr/ibag8U+Sie/3cAyCGpheHFwUc7ltAlCZcJtF1Myvtp
-QpqQsKDd+fTlvN7R2WC9MWvZjCYO2mtzjyaxAr87CFuvy8hWFNq3flLPcbIh+G1O
-nuplfKP8hDlACYB9LutD5tleVJOV327g47UrB+CaBBRrUPlOUbz+ZNQyJAoGAOwg0
-9xJgdeQ6v+4y/ZoRHIK/dsjKGDA3ZG3hJBoopeJMQ0FwfY00zitO/rIlsQiELfHK
-3bChbUgxsMD2WFWsgXcP/Qt7hnMylcA4e4z/l2bW7gTisLvKLTzNi04qAC97Ys33
-m+4fxRQlpgR41LlMeugWY99VU4IlzRW8YMljcu0CgYAWbulysvPkAGpKaldHy7l/
-esNaZLBHGWRG43mWFumQrYq3Fqh3LbFgJKWU0WheGMsxOIe5zOup8ql+3h/pRc5H
-7h00pgiGG1aWChaFHGw2w//8+mONuEnHgq034x069m2a8XfM8gjDCvCdknCXP+qv
-1uJnHyigVe0dhO3acFiGjQ==
------END PRIVATE KEY-----""",
-    "public_key_id": "Sx8jlreFOAkRXtJH0jrTbEhJ-tWn4mwuPjJfKZqsyxg"
-}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
-            oauth_app = load_oauth_app_from_config(COZE_CONFIG)
-            oauth_token = oauth_app.get_access_token()
+            # 1. 获取前端传来的名字（用于隔离档案）
+            query = parse_qs(urlparse(self.path).query)
+            student_name = query.get('name', ['default'])[0]
+
+            # 2. 自动定位并读取原装的 JSON 文件，100% 避免格式错误
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(current_dir)
+            config_path = os.path.join(root_dir, 'coze_oauth_config.json')
             
+            with open(config_path, 'r', encoding='utf-8') as f:
+                coze_config = json.load(f)
+
+            # 3. 启动扣子 SDK，传入名字锁定独立聊天档案
+            oauth_app = load_oauth_app_from_config(coze_config)
+            oauth_token = oauth_app.get_access_token(session_name=student_name)
+            
+            # 4. 成功发卡
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"token": oauth_token.access_token}).encode('utf-8'))
+            
         except Exception as e:
+            # 报错反馈
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
