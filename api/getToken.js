@@ -2,8 +2,6 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 module.exports = async function (req, res) {
-    const sessionName = req.query.name || 'default_user';
-
     // 核心安全机制：读取 Vercel 的系统保险柜
     const clientId = process.env.COZE_CLIENT_ID; 
     const kid = process.env.COZE_KID; 
@@ -14,17 +12,15 @@ module.exports = async function (req, res) {
         privateKey = privateKey.replace(/\\n/g, '\n');
     }
 
-    // 安全校验：如果 Vercel 没配置环境变量，直接拦截并报错
     if (!clientId || !kid || !privateKey) {
-        console.error("安全警报：Vercel 环境变量未配置！");
-        return res.status(500).json({ error: '系统安全配置缺失，请检查 Vercel 环境变量' });
+        return res.status(500).json({ error: '系统安全配置缺失' });
     }
 
+    // 👇 核心修复：去掉了 session_name，纯净的国际标准格式，绝对不会引发乱码崩溃！
     const payload = {
         iss: clientId,
         aud: "api.coze.cn",
-        jti: Math.random().toString(36).substring(2),
-        session_name: sessionName
+        jti: Math.random().toString(36).substring(2)
     };
 
     try {
@@ -43,22 +39,16 @@ module.exports = async function (req, res) {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        // 成功发放，扔给前端网页
         if (response.data && response.data.access_token) {
             res.status(200).json({ token: response.data.access_token });
         } else {
-            res.status(500).json({ error: '扣子拒绝发卡，请检查 OAuth 权限配置' });
+            res.status(500).json({ error: '扣子拒绝发卡' });
         }
     } catch (error) {
-        console.error("生成 Token 报错", error);
-        
-        // 👇 抓取真正的案发原因
         let realReason = error.message;
         if (error.response && error.response.data) {
             realReason = JSON.stringify(error.response.data);
         }
-        
-        // 把真凶直接推送到手机屏幕上
         res.status(500).json({ error: '真凶找到了：' + realReason });
     }
 };
