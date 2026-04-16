@@ -2,25 +2,16 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 module.exports = async function (req, res) {
-    const clientId = (process.env.COZE_CLIENT_ID || '').replace(/['"]/g, '').trim();
-    const kid = (process.env.COZE_KID || '').replace(/['"]/g, '').trim();
-    let rawKey = process.env.COZE_PRIVATE_KEY || '';
-
-    // 👇 终极护盾 2.0：无论 Vercel 把格式揉搓成什么样，强行重组完美钥匙！
-    let privateKey = '';
-    let keyMatch = rawKey.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
-    if (keyMatch) {
-        // 1. 把中间的核心乱码提出来，删掉所有空格、换行符和错乱的斜杠
-        let cleanBase64 = keyMatch[1].replace(/\s+/g, '').replace(/\\n/g, '');
-        // 2. 像搭积木一样，强行用回车符把首尾和内容重新组装成官方标准
-        privateKey = `-----BEGIN PRIVATE KEY-----\n${cleanBase64}\n-----END PRIVATE KEY-----`;
-    } else {
-        // 如果没匹配到，使用基础清洗
-        privateKey = rawKey.replace(/"/g, '').replace(/\\n/g, '\n').trim();
-    }
+    // 👇 终极护盾：强制剥离所有因复制带来的双引号、单引号和隐藏空格！
+    let clientId = (process.env.COZE_CLIENT_ID || '').replace(/['"]/g, '').trim();
+    let kid = (process.env.COZE_KID || '').replace(/['"]/g, '').trim();
+    let privateKey = (process.env.COZE_PRIVATE_KEY || '')
+        .replace(/"/g, '')        // 去除首尾可能的双引号
+        .replace(/\\n/g, '\n')    // 完美处理换行符
+        .trim();
 
     if (!clientId || !kid || !privateKey) {
-        return res.status(500).json({ error: '环境变量未正确读取' });
+        return res.status(500).json({ error: '环境变量未正确读取，请检查 Vercel' });
     }
 
     const payload = {
