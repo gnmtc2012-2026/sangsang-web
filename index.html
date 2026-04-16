@@ -5,16 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>蚕宝宝守护精灵桑桑</title>
     <style>
-        /* 核心锁死代码：禁止外层网页跟着上下乱跑，解决滑动冲突 */
+        /* 拆除死锁，换用现代移动端专属防冲突方案 */
         html, body { 
             margin: 0; 
             padding: 0; 
             width: 100%;
             height: 100%; 
-            overflow: hidden; 
+            /* 核心修改：只拦截橡皮筋回弹，不锁死滚动条 */
+            overscroll-behavior: none; 
+            /* 开启苹果/安卓原生丝滑滚动加速 */
+            -webkit-overflow-scrolling: touch; 
+            /* 优化手机触控，防止双击缩放引发的滑动卡顿 */
+            touch-action: manipulation; 
             background-color: #f6ffed; 
             font-family: sans-serif; 
         }
+        
         #welcome-mask {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #e6f7ff; display: flex; flex-direction: column;
