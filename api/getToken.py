@@ -1,29 +1,54 @@
 from http.server import BaseHTTPRequestHandler
 import json
-from urllib.parse import parse_qs, urlparse
 from cozepy import load_oauth_app_from_config
 
-# 这里完全复制了您下载的 coze_oauth_config.json 官方配置，一行未改！
-coze_config = {
+# 这里的配置完全提取自您上传的 coze_oauth_config.json
+COZE_CONFIG = {
     "client_type": "jwt",
-    "client_id": "1204993694888",
+    "client_id": "1111557339016",
     "coze_www_base": "https://www.coze.cn",
     "coze_api_base": "https://api.coze.cn",
-    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDiwh7TrJLodHIO\nkGualtSi9i76F4TfTaDR75PctmHjHQko2GH9rvdEkHnG/7EunBpgFCQnFsWF39Ia\nJ7tORswqVmeU7/8P5BtOcH96EGW1FmLSj8YsmX/vIU8UD7K8pbZkKFOCOFRYENfl\npQzvx+Tqj3P10SUMfKocQ0M6ZvI1NKEHPd+oYNuVv9htccnRfHVLqGI0wKitq4FU\nH6zGEv+FDyHrEVg1fUbhlSY1b9yLPBo+TRlIYDJYPVkCX2gu8ojtcbMgAnaJ7X4H\nvUrM55lUUoS87MFDsNUZPCYs6SnmpFE+q908fBQZFZ3V7fPynLz1ZICcBqU7cNS/\ndBcaHcdxAgMBAAECggEASkjYq3Rt/gvjr4S9U3vU9fvbQN/CjhrSs+Od12DCKZJC\nBWj5lQ8j/wirdDcgdsn50/7VJx8NH0HHBP1+HXMRAE+lCEQlFTIfhe9Ru42ynAPU\n5PDntYWlxRNu4f4Qij9pRF93mAHXE7CU4azT05tzESpkjSNyVShj2/VnCTNfZnEU\n7MObP3ZiWvv/Y3Jw7CgDW+Ja7/vJ8ApjTVemYdZurg/E4NY/r/hv5TbsevDygNkm\nWRSgSHSt6iR4VOLbZU9ogMcyXoBCj4V0HqN0jDo32mV43875u/QjHWlF98Ck/LeL\nVdhntjGsCM8GMt2MtWkNRCmn/YRfNcKd/rv8uRNeRwKBgQD0kmwPL9UQQJndGqa2\nT7/3sTQGGFJUz3rOeJkuA1RSB8uQNP2j5uYeRJYachipzMA5n/QvN1MDwoBixG+p\nGYzgudr2N+L04YV2U/MzWBrywWYPV/PEz1xa5kqHouCZjwbyOX+Ze19xEITbJ17g\nqZu8MXK3uE+J9yTlJtyKbM/x/wKBgQDtWpxJsDeXBKJQTLhW4CgJumn56ey0M/2c\n1NMgmQ+ljE55a8cWSfl0cQLdf/1H4zg2g/jTx6YBjnQ5+KsaaaLB3Y+/rsF0vzLf\nJ20qoLAm0GMv//81vNWyHAuaV3gGiJRu/+G9Wl78EDzgNO0fyCnEx5sk1qqMRh34\n5HtYFHZmjwKBgQCoHF2ass5JtZ4NlVwyxO63W17fMaimE1fexJbGQhObrzAFl+cg\n2n4jIBHta6/4R316HrDCI800MGX/ffcizSVA83/G7vNaUAplI59wE4eyha2ZrmMp\nTT+2W8WvJg4sf1vO9Cb5YQxhs3EfExjsZKlf2r13+4Dw3KjHusatf84QEQKBgQCJ\nBNreKy0cMB+nbXKpLEPQwd112RW9PZo1lCLBWbrPnbybmZ1Xf6LTFn5J8h38Bu6n\nge3+C+4ITf1IjgXwfHTpp4bZZ//j7pBmhHMfvZ2S+o+X4ReqJPXUGR6VndL7KpNN\ntMfTML1Ok+0gnU0aIMoEABrO3GGeEsgwq22M/lsPfwKBgD+rDuI62m/FCcXQ4dXV\nNeoo+9g1HD6wNcVExwz/zkY67e9qvBQyQjkb4l8103F5QMskOhSrCOjdt5RVo3iw\nIrb4kjTdtd4S+MZGznFKD5QpbHqAbZdtQWvuP34DPvPaoy3oFZjN/Q8aKzzf0RIW\nKlJpbm9suRMtpCxylOpVODhm\n-----END PRIVATE KEY-----",
-    "public_key_id": "c1wTGni_1YToa6HONcPMroUCBuF9oJbRTvI1BYGnjgE"
+    "private_key": """-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC+/HIN8g4KFqss
+/tLC5xuCTF9WqZDuxwIWR4Z2c2NUEvdXtC7sozXUx0FJHAU3pG6+nD6kWeA5ZUjP
+6OjbDpWAeoY7di7dkLAyH0m0TSMWuVOrsxYsnNwplZBScePgjEBVYcAFsLo//sCG
+8e95dF950FAJu9BAyLg3khnpBhuRm25rj4SCVHz5p1GY9f7p+AvMJwa+QYAbS1CG
+YW+A2ariYUIAovGE3ruJRZneIOjFd4TQY9u4ssROppyi/xXA3P6qbsGizYNiwE86
+U0puS/LNN0hahQgpvKyWUZ8mecf4CaTUvuJmRzvY/c0aottPL7AaOgPtqZ9lVr/H
+fi6/O7fzAgMBAAECggEACS9bODLPHGAZDQ8XnsT+QdwfbQEMVdd0pmf73lV6o5qi
+kka5nQAqa23Gb4LX+LmWk+Hax2JafMLTZ3Wu694TMDx0Q9wmsS7aB8cRGd6TKe7G
+yIf9MIRouDKXtXIBwL+uAQ00RBx1kJ9VWLK+TsvbIvYdlfeWMo9qAKOCTdPRM/A9
+nl3AgXYXdSEm9lojzXKTJ4u+2MMI4j0S5crlm3N2oTsh/TqfyygQ0cM87goHJeUNE
+cGGbSDLTzRFv4djgenoRopyRopOoZK1eW6ll88DtFwPjOtOudzwJ+riGg6fMYx1bs
+zDHPBc2w8qMlZMNwjbRJ8zoGCE4mQyhD7IoR+ys9+QKBgQDlrVoVjX1ellFmAta2
+gDKLhER9o7bq7aCL87eD22KeE3Ava2l7BbYLmFHSfqSygHovecoHQKYvD8vVRnG3
+or34+ceiaMFv0ouxrcR1wfdqzJrPc0V4SAHIejqF8gEXmWVgjR6rXR3AvKrMyOlQ
+AsYfaKOf+AGSxAZERTTidAWoOQKBgQDU3+lzv/yCrAcocLrHP4KOxjf4rccplh+P
+1iiKFv+/PuHZfAnKKKhKmfLmaFrfJ3x4jE78wMwpff/YJUmE8cjwhwVwUJSM9Ixs
+VUfAS6iAx+LE+hDQOhNXLaZbnJIiOMn4TMZbwLig+WsAAG89h5v97FqoRKTnOrNy
+D/dNW3ppiwKBgHjOGG7zr/ibag8U+Sie/3cAyCGpheHFwUc7ltAlCZcJtF1Myvtp
+QpqQsKDd+fTlvN7R2WC9MWvZjCYO2mtzjyaxAr87CFuvy8hWFNq3flLPcbIh+G1O
+nuplfKP8hDlACYB9LutD5tleVJOV327g47UrB+CaBBRrUPlOUbz+ZNQyJAoGAOwg0
+9xJgdeQ6v+4y/ZoRHIK/dsjKGDA3ZG3hJBoopeJMQ0FwfY00zitO/rIlsQiELfHK
+3bChbUgxsMD2WFWsgXcP/Qt7hnMylcA4e4z/l2bW7gTisLvKLTzNi04qAC97Ys33
+m+4fxRQlpgR41LlMeugWY99VU4IlzRW8YMljcu0CgYAWbulysvPkAGpKaldHy7l/
+esNaZLBHGWRG43mWFumQrYq3Fqh3LbFgJKWU0WheGMsxOIe5zOup8ql+3h/pRc5H
+7h00pgiGG1aWChaFHGw2w//8+mONuEnHgq034x069m2a8XfM8gjDCvCdknCXP+qv
+1uJnHyigVe0dhO3acFiGjQ==
+-----END PRIVATE KEY-----""",
+    "public_key_id": "Sx8jlreFOAkRXtJH0jrTbEhJ-tWn4mwuPjJfKZqsyxg"
 }
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
-            # 1. 拦截前端网页发来的请求
-            parsed_path = urlparse(self.path)
+            # 1. 使用官方 SDK 加载配置
+            oauth_app = load_oauth_app_from_config(COZE_CONFIG)
             
-            # 2. 调用国内扣子官方 SDK (cozepy)，绝不手写加密！
-            oauth_app = load_oauth_app_from_config(coze_config)
+            # 2. 获取 Access Token
             oauth_token = oauth_app.get_access_token()
             
-            # 3. 拿到官方发下来的 token，打包发给前端
+            # 3. 返回 JSON 响应
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -32,10 +57,8 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(response_data).encode('utf-8'))
             
         except Exception as e:
-            # 万一官方 SDK 报错，把中文错误直接弹回给前端
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            
-            error_data = {"error": f"官方SDK配置异常: {str(e)}"}
-            self.wfile.write(json.dumps(error_data).encode('utf-8'))
+            error_message = {"error": f"Failed to get access token: {str(e)}"}
+            self.wfile.write(json.dumps(error_message).encode('utf-8'))
