@@ -4,7 +4,7 @@ const axios = require('axios');
 module.exports = async function (req, res) {
     const sessionName = req.query.name || 'default_user';
 
-    // 核心安全机制：读取 Vercel 的系统保险柜，不在代码里暴露真实密码
+    // 核心安全机制：读取 Vercel 的系统保险柜
     const clientId = process.env.COZE_CLIENT_ID; 
     const kid = process.env.COZE_KID; 
     let privateKey = process.env.COZE_PRIVATE_KEY;
@@ -49,7 +49,7 @@ module.exports = async function (req, res) {
         } else {
             res.status(500).json({ error: '扣子拒绝发卡，请检查 OAuth 权限配置' });
         }
-} catch (error) {
+    } catch (error) {
         console.error("生成 Token 报错", error);
         
         // 👇 抓取真正的案发原因
@@ -61,5 +61,4 @@ module.exports = async function (req, res) {
         // 把真凶直接推送到手机屏幕上
         res.status(500).json({ error: '真凶找到了：' + realReason });
     }
-};
 };
