@@ -17,7 +17,7 @@
         input { width: 90%; padding: 15px; margin: 15px 0; border: 2px solid #b7eb8f; border-radius: 8px; font-size: 18px; outline: none; box-sizing: border-box; }
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px;}
         
-        /* 右上角切换按钮 */
+        /* 切换同学按钮 */
         #switchUserBtn {
             position: fixed; top: 10px; right: 10px; z-index: 10000;
             background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px);
@@ -43,10 +43,9 @@
         const MY_BOT_ID = '7628621142705831979'; 
         const API_ENDPOINT = '/api/getToken'; 
 
-        // 核心逻辑：彻底清除缓存
+        // 核心武器：暴力清理手机/电脑浏览器的旧缓存记录
         async function clearCozeCache() {
             localStorage.removeItem('sangsang_student_id');
-            // 暴力删除扣子SDK生成的数据库，这是解决“串号”的关键
             if (window.indexedDB) {
                 const dbs = ['coze-chat-sdk', 'coze-web-sdk', 'localforage'];
                 dbs.forEach(db => window.indexedDB.deleteDatabase(db));
@@ -60,7 +59,6 @@
             }
         }
 
-        // 检查是否已有登录记录
         const savedName = localStorage.getItem('sangsang_student_id');
         if (savedName) {
             document.getElementById('welcome-mask').style.display = 'none';
@@ -72,19 +70,19 @@
             const name = document.getElementById('studentInput').value.trim();
             if (!name) return alert('请先输入班级姓名哦！');
             
-            // 第一次登录前也清理一次，防患于未然
+            // 登录前彻底清空上一个人的记录
             await clearCozeCache();
             localStorage.setItem('sangsang_student_id', name);
-            location.reload(); // 刷新以应用清理并进入 initCoze
+            location.reload(); 
         }
 
-        async function initCoze(userId) {
+        async function initCoze(userName) {
             try {
-                // 向后台请求专属 Token
-                const res = await fetch(API_ENDPOINT + '?name=' + encodeURIComponent(userId));
+                // 去后台要一张写着该名字的房卡
+                const res = await fetch(API_ENDPOINT + '?name=' + encodeURIComponent(userName));
                 const data = await res.json();
                 
-                if (!data.token) throw new Error(data.error || '获取Token失败');
+                if (!data.token) throw new Error(data.error || '后台发卡失败');
 
                 new CozeWebSDK.WebChatClient({
                     config: { bot_id: MY_BOT_ID },
@@ -94,8 +92,8 @@
                         token: data.token, 
                         onRefreshToken: () => data.token 
                     },
-                    // 👇 关键：使用姓名作为唯一ID，确保扣子拉取对应的历史记录
-                    userInfo: { id: userId, nickname: userId },
+                    // 绑定前端身份，死死锁住记录
+                    userInfo: { id: userName, nickname: userName },
                     ui: {
                         base: { lang: 'zh-CN' },
                         asstBtn: { isNeed: false },
@@ -104,7 +102,7 @@
                 }).showChatBot();
 
             } catch (e) {
-                alert('连接失败：' + e.message);
+                alert('连接遇到小问题：\n' + e.message);
                 clearCozeCache();
                 location.reload();
             }
