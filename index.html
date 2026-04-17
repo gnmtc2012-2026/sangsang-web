@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>蚕宝宝守护精灵桑桑</title>
     <style>
+        /* 移动端丝滑滚动配置 */
         html, body { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overscroll-behavior: none; -webkit-overflow-scrolling: touch; touch-action: manipulation; 
@@ -19,16 +20,16 @@
         h2 { color: #52c41a; font-size: 24px; margin-top: 0; }
         p { font-size: 16px; color: #595959; }
         
-        /* 统一下拉框和输入框的样式，更美观 */
+        /* 统一选择框和输入框样式 */
         select, input { 
             width: 90%; padding: 12px; margin: 10px 0; 
             border: 2px solid #b7eb8f; border-radius: 8px; 
             font-size: 16px; outline: none; box-sizing: border-box; 
-            font-family: inherit;
         }
-        select { background-color: white; color: #595959; cursor: pointer; }
+        select { background-color: white; color: #595959; }
         
         button { background: #52c41a; color: white; border: none; padding: 15px 35px; border-radius: 30px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px;}
+        
         #switchUserBtn {
             position: fixed; top: 10px; right: 10px; z-index: 10000;
             background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px);
@@ -43,10 +44,10 @@
     <div id="welcome-mask">
         <div class="box">
             <h2>🌿 科学探究乐园</h2>
-            <p>请选择班级并输入姓名：</p>
+            <p>请输入你的班级和姓名：</p>
             
             <select id="classSelect">
-                <option value="" disabled selected>请选择班级 👇</option>
+                <option value="" disabled selected>选择你的班级 👇</option>
                 <option value="三年级1班">三年级1班</option>
                 <option value="三年级2班">三年级2班</option>
                 <option value="三年级3班">三年级3班</option>
@@ -61,9 +62,7 @@
                 <option value="三年级12班">三年级12班</option>
             </select>
             
-            <input type="text" id="nameInput" placeholder="真实姓名（如：刘佳敏）">
-            
-            <input type="password" id="pwdInput" placeholder="通关密码（学号）">
+            <input type="text" id="nameInput" placeholder="请输入真实姓名">
             
             <button onclick="startChat()">进入观察档案 ✨</button>
         </div>
@@ -73,6 +72,7 @@
     <script>
         const MY_BOT_ID = '7628621142705831979'; 
 
+        // 清理缓存逻辑
         async function clearCozeCache() {
             localStorage.clear();
             if (window.indexedDB) {
@@ -81,70 +81,67 @@
             }
         }
 
+        // 切换同学：清理并刷新
         function resetAndReload() {
-            if(confirm('确定要退出当前账号吗？')) {
+            if(confirm('确定要退出当前账号并切换同学吗？')) {
                 clearCozeCache().then(() => location.reload());
             }
         }
 
+        // 读取本地存储
         const savedName = localStorage.getItem('sangsang_student_id');
-        const savedPwd = localStorage.getItem('sangsang_student_pwd'); 
-        
-        // 判断是否已有登录状态
         if (savedName) {
             document.getElementById('welcome-mask').style.display = 'none';
             document.getElementById('switchUserBtn').style.display = 'block';
-            initCoze(savedName, savedPwd || '');
+            initCoze(savedName);
         }
 
+        // 登录按钮点击
         async function startChat() {
             const studentClass = document.getElementById('classSelect').value;
             const studentName = document.getElementById('nameInput').value.trim();
-            const pwdInput = document.getElementById('pwdInput');
-            const pwd = pwdInput ? pwdInput.value.trim() : '';
             
-            // 严密的前端校验
             if (!studentClass) return alert('请先选择班级哦！');
-            if (!studentName) return alert('请填写你的真实姓名哦！');
-            if (pwdInput && !pwd) return alert('请输入通关密码！');
+            if (!studentName) return alert('别忘了输入姓名呀！');
             
-            // 👇 核心拼装逻辑：把下拉框和姓名拼成“三年级1班刘佳敏”，传给扣子后台
-            const fullName = studentClass + studentName; 
+            const fullName = studentClass + studentName; // 拼接成：三年级1班张小明
             
             await clearCozeCache();
             localStorage.setItem('sangsang_student_id', fullName);
-            if (pwdInput) localStorage.setItem('sangsang_student_pwd', pwd); 
             location.reload(); 
         }
 
-        async function initCoze(userName, password) {
+        // 初始化智能体
+        async function initCoze(userName) {
             try {
-                // 判断是否开启了密码验证后端
-                let fetchUrl = `/api/getToken?name=${encodeURIComponent(userName)}`;
-                if (password) {
-                    fetchUrl += `&pwd=${encodeURIComponent(password)}`;
-                }
-                
-                const res = await fetch(fetchUrl);
+                // 请求授权 Token
+                const res = await fetch('/api/getToken?name=' + encodeURIComponent(userName));
                 const data = await res.json();
                 
-                if (!res.ok || data.error) {
-                    throw new Error(data.error || '验证失败');
-                }
+                if (!data.token) throw new Error(data.error || '连接失败');
 
                 new CozeWebSDK.WebChatClient({
-                    config: { bot_id: MY_BOT_ID, isIframe: false },
+                    config: { 
+                        bot_id: MY_BOT_ID,
+                        isIframe: false 
+                    },
                     componentProps: { title: userName + ' 的观察档案 🌿' },
-                    auth: { type: 'token', token: data.token, onRefreshToken: () => data.token },
+                    auth: { 
+                        type: 'token', 
+                        token: data.token, 
+                        onRefreshToken: () => data.token 
+                    },
                     userInfo: { id: userName, nickname: userName },
-                    ui: { base: { lang: 'zh-CN' }, asstBtn: { isNeed: false } }
+                    ui: {
+                        base: { lang: 'zh-CN' },
+                        asstBtn: { isNeed: false }
+                    }
                 }).showChatBot();
 
             } catch (e) {
-                alert(e.message);
+                alert('连接小问题：' + e.message);
                 await clearCozeCache();
-                document.getElementById('welcome-mask').style.display = 'flex';
-                document.getElementById('switchUserBtn').style.display = 'none';
+                location.reload();
             }
         }
     </script>
